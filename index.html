@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手写体生成器 ✍️</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Long+Cang&family=Zhi+Mang+Xing&family=Liu+Jian+Mao+Cao&family=ZCOOL+KuaiLe&family=ZCOOL+XiaoWei&family=Caveat&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent:#4f6ef7;
+    --accent-dark:#3b56d6;
+    --ink:#1f2937;
+    --panel:#ffffff;
+    --muted:#6b7280;
+    --border:#e5e7eb;
+    --bg:#f3f4f6;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  header{
+    background:linear-gradient(135deg,#4f6ef7,#7c3aed);
+    color:#fff;
+    padding:14px 22px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex:0 0 auto;
+    box-shadow:0 1px 4px rgba(0,0,0,.15);
+  }
+  header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.5px;}
+  header .sub{font-size:12px;opacity:.85;margin-top:2px;}
+  .layout{
+    flex:1 1 auto;
+    display:flex;
+    min-height:0;
+  }
+  aside{
+    width:320px;
+    flex:0 0 auto;
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    overflow-y:auto;
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:13px;font-weight:600;color:#374151;}
+  textarea{
+    width:100%;min-height:150px;resize:vertical;
+    border:1px solid var(--border);border-radius:8px;
+    padding:10px;font-size:14px;line-height:1.7;
+    font-family:inherit;color:var(--ink);
+  }
+  textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  select{
+    width:100%;padding:8px 10px;border:1px solid var(--border);
+    border-radius:8px;font-size:14px;background:#fff;
+  }
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .row .val{font-size:12px;color:var(--muted);min-width:38px;text-align:right;font-variant-numeric:tabular-nums;}
+  input[type=range]{flex:1;accent-color:var(--accent);}
+  .swatches{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .swatch{
+    width:28px;height:28px;border-radius:50%;cursor:pointer;
+    border:2px solid transparent;box-shadow:0 0 0 1px rgba(0,0,0,.08);
+    position:relative;transition:transform .1s;
+  }
+  .swatch:hover{transform:scale(1.12);}
+  .swatch.active{box-shadow:0 0 0 2px #fff, 0 0 0 3.5px var(--accent);}
+  input[type=color]{width:34px;height:28px;border:none;background:none;padding:0;cursor:pointer;}
+  .checks{display:flex;flex-direction:column;gap:8px;font-size:13px;color:#374151;}
+  .checks label{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;}
+  .checks input{accent-color:var(--accent);width:16px;height:16px;}
+  .btns{display:flex;flex-direction:column;gap:8px;}
+  button{
+    border:none;border-radius:8px;padding:11px;font-size:14px;
+    font-weight:600;cursor:pointer;transition:filter .1s, transform .05s;
+  }
+  button:active{transform:translateY(1px);}
+  .primary{background:var(--accent);color:#fff;}
+  .primary:hover{filter:brightness(1.05);}
+  .ghost{background:#eef1f6;color:#374151;}
+  .ghost:hover{filter:brightness(.97);}
+  .tip{font-size:12px;color:var(--muted);line-height:1.6;}
+  main{
+    flex:1 1 auto;
+    overflow:auto;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px 16px;
+    background:
+      radial-gradient(circle at 1px 1px, rgba(0,0,0,.05) 1px, transparent 0) 0 0/22px 22px,
+      #eef0f4;
+  }
+  #paperWrap{position:relative;}
+  #paper{
+    position:relative;
+    background:#fff;
+    border-radius:2px;
+    box-shadow:0 6px 24px rgba(0,0,0,.16);
+    overflow:hidden;
+    transform-origin:top left;
+  }
+  #ruleLayer{
+    position:absolute;inset:0;pointer-events:none;
+  }
+  #textLayer{
+    position:absolute;left:0;top:0;
+  }
+  .line{
+    line-height:1;
+    white-space:nowrap;
+  }
+  .glyph{
+    display:inline-block;
+    letter-spacing:0;
+    white-space:pre;
+    transform-origin:center;
+  }
+  .empty-hint{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#b6bcc7;font-size:15px;pointer-events:none;letter-spacing:1px;
+  }
+  @media (max-width:760px){
+    .layout{flex-direction:column;}
+    aside{width:100%;max-height:46vh;border-right:none;border-bottom:1px solid var(--border);}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>✍️ 手写体生成器</h1>
+      <div class="sub">输入文字 → 套手写字体和纸张 → 导出图片</div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="field">
+        <label>文字内容</label>
+        <textarea id="text" placeholder="在这里输入要转成手写的文字…"></textarea>
+      </div>
+
+      <div class="field">
+        <label>手写字体</label>
+        <select id="font"></select>
+      </div>
+
+      <div class="field">
+        <label>字号 <span class="val" id="fontSizeVal"></span></label>
+        <input type="range" id="fontSize" min="16" max="56" step="1" value="30">
+      </div>
+
+      <div class="field">
+        <label>行距 <span class="val" id="lineHeightVal"></span></label>
+        <input type="range" id="lineHeight" min="1.2" max="2.6" step="0.05" value="1.9">
+      </div>
+
+      <div class="field">
+        <label>字距 <span class="val" id="letterSpacingVal"></span></label>
+        <input type="range" id="letterSpacing" min="0" max="12" step="1" value="2">
+      </div>
+
+      <div class="field">
+        <label>墨色</label>
+        <div class="swatches" id="inkSwatches"></div>
+      </div>
+
+      <div class="field">
+        <label>纸张</label>
+        <select id="bg"></select>
+      </div>
+
+      <div class="field">
+        <label>随机歪斜 <span class="val" id="tiltVal"></span></label>
+        <input type="range" id="tilt" min="0" max="8" step="0.5" value="3">
+      </div>
+
+      <div class="checks">
+        <label><input type="checkbox" id="indent" checked> 首行缩进两格</label>
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="export">⬇ 导出 PNG 图片</button>
+        <button class="ghost" id="sample">填入示例文字</button>
+        <button class="ghost" id="clear">清空</button>
+      </div>
+
+      <div class="tip">💡 字体来自 Google Fonts，首次打开需要联网加载；导出时字体会自动就绪。倾斜度 0 表示完全工整，拉大则更像真人随手写。</div>
+    </aside>
+
+    <main>
+      <div id="paperWrap">
+        <div id="paper">
+          <div id="ruleLayer"></div>
+          <div id="textLayer"></div>
+          <div class="empty-hint">在左边输入文字试试</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ---------- 常量 ----------
+  const PAPER_W = 720;
+  const PAD = 40;
+  const ASCENT = 0.88;      // 基线占字高的比例（用于对齐横线）
+
+  const FONTS = [
+    { name:'Long Cang',        label:'龙藏 · 连笔行书' },
+    { name:'Zhi Mang Xing',    label:'智芒行 · 行草' },
+    { name:'Ma Shan Zheng',    label:'马善政 · 毛笔楷书' },
+    { name:'Liu Jian Mao Cao', label:'刘健毛草 · 草书' },
+    { name:'ZCOOL KuaiLe',     label:'站酷快乐体 · 圆润' },
+    { name:'ZCOOL XiaoWei',    label:'站酷小薇 · 宋体' },
+  ];
+
+  const BGS = [
+    { key:'lined', label:'横线本', paper:'#ffffff', line:'#c7d2de' },
+    { key:'draft', label:'稿纸（淡黄）', paper:'#fbf6e7', line:'#e0cfa3' },
+    { key:'white', label:'纯白纸', paper:'#ffffff' },
+    { key:'grid',  label:'方格纸', paper:'#ffffff', line:'#d4dbe4' },
+    { key:'mi',    label:'米字格', paper:'#ffffff', line:'#dfe4ec', diag:'#eef1f5' },
+  ];
+
+  const INKS = [
+    { color:'#1f2937', label:'黑色' },
+    { color:'#1d4ed8', label:'蓝色' },
+    { color:'#dc2626', label:'红色' },
+    { color:'#0f766e', label:'墨绿' },
+  ];
+
+  // ---------- 状态 ----------
+  const state = {
+    text: '',
+    font: 'Long Cang',
+    fontSize: 30,
+    lineHeight: 1.9,
+    letterSpacing: 2,
+    ink: '#1f2937',
+    bg: 'lined',
+    tilt: 3,
+    indent: true,
+  };
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const textEl = $('text'), fontEl = $('font'), bgEl = $('bg');
+  const fontSizeEl = $('fontSize'), lineHeightEl = $('lineHeight'), letterSpacingEl = $('letterSpacing');
+  const tiltEl = $('tilt'), indentEl = $('indent');
+  const paperEl = $('paper'), textLayerEl = $('textLayer'), paperWrapEl = $('paperWrap');
+  const exportBtn = $('export'), sampleBtn = $('sample'), clearBtn = $('clear');
+
+  // 测量用离屏 canvas
+  const mctx = document.createElement('canvas').getContext('2d');
+
+  function fontStack(){
+    return `"${state.font}", "Caveat", cursive, sans-serif`;
+  }
+  function fontString(){
+    return `${state.fontSize}px ${fontStack()}`;
+  }
+  function lineH(){ return state.fontSize * state.lineHeight; }
+  function contentW(){ return PAPER_W - 2 * PAD; }
+
+  function measure(str){
+    if(str === ' ') return state.fontSize * 0.5;
+    mctx.font = fontString();
+    return mctx.measureText(str).width;
+  }
+
+  // ---------- 随机（可复现） ----------
+  function hashStr(s){
+    let h = 2166136261;
+    for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = t + Math.imul(t ^ (t >>> 7), 61 | t) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------- 分词 ----------
+  const CJK = /[\u2E80-\u2EFF\u3000-\u303F\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/;
+  function isCJK(ch){ return CJK.test(ch); }
+  function tokenize(text){
+    const toks = [];
+    let i = 0;
+    while(i < text.length){
+      const ch = text[i];
+      if(isCJK(ch)){ toks.push(ch); i++; }
+      else if(/\s/.test(ch)){ toks.push(' '); i++; }
+      else{
+        let j = i;
+        while(j < text.length && !isCJK(text[j]) && !/\s/.test(text[j])) j++;
+        toks.push(text.slice(i, j));
+        i = j;
+      }
+    }
+    return toks;
+  }
+
+  // ---------- 排版（生成字素） ----------
+  function buildLines(){
+    const paras = state.text.replace(/\r\n/g, '\n').split('\n');
+    const maxW = contentW();
+    const ls = state.letterSpacing;
+    const fs = state.fontSize;
+    const indentPx = state.indent ? fs * 2 : 0;
+    const rng = mulberry32(hashStr(state.text + '|' + state.font + '|' + fs + '|' + ls + '|' + state.tilt));
+
+    const lines = [];
+    let gi = 0;
+
+    paras.forEach(para => {
+      if(para.trim() === ''){
+        lines.push({ glyphs: [], indent: false });
+        return;
+      }
+      const tokens = tokenize(para);
+      let glyphs = [];
+      let x = 0;
+      let firstLine = true;
+      let avail = maxW - (firstLine ? indentPx : 0);
+
+      for(const tok of tokens){
+        const tokW = measure(tok);
+        if(glyphs.length > 0 && x + tokW > avail){
+          lines.push({ glyphs, indent: firstLine && state.indent });
+          glyphs = []; x = 0; firstLine = false; avail = maxW;
+        }
+        for(const ch of tok){
+          const cw = measure(ch);
+          const isSpace = ch === ' ';
+          const r1 = rng(), r2 = rng(), r3 = rng();
+          const angle = (!isSpace && state.tilt > 0) ? (r1 - 0.5) * 2 * state.tilt : 0;
+          const dy    = (!isSpace && state.tilt > 0) ? (r2 - 0.5) * 2 * (fs * 0.06) : 0;
+          const scale = (!isSpace && state.tilt > 0) ? 1 + (r3 - 0.5) * 0.08 : 1;
+          glyphs.push({ ch, x, w: cw, angle, dy, scale, idx: gi++ });
+          x += cw + ls;
+        }
+      }
+      lines.push({ glyphs, indent: firstLine && state.indent });
+    });
+
+    return lines;
+  }
+
+  // ---------- 背景（CSS 渐变） ----------
+  function bgCss(){
+    const bg = BGS.find(b => b.key === state.bg);
+    const fs = state.fontSize, lh = lineH();
+    const line = bg.line || '#c7d2de';
+    let imgs = [];
+
+    if(state.bg === 'lined' || state.bg === 'draft'){
+      // 让横线与文字基线对齐：线在整页上的相位 = (PAD + 基线偏移) 对行高取模
+      const o = (PAD + fs * ASCENT) % lh;
+      imgs.push(`repeating-linear-gradient(to bottom,
+        transparent 0, transparent ${o}px,
+        ${line} ${o}px, ${line} ${o + 1}px,
+        transparent ${o + 1}px, transparent ${lh}px)`);
+      if(state.bg === 'draft'){
+        const m = PAD * 0.55;
+        imgs.push(`linear-gradient(to right,
+          transparent 0, transparent ${m}px,
+          #e2b7b7 ${m}px, #e2b7b7 ${m + 1}px,
+          transparent ${m + 1}px)`);
+      }
+    } else if(state.bg === 'grid' || state.bg === 'mi'){
+      const cell = fs;
+      imgs.push(`repeating-linear-gradient(to right,
+        transparent 0, ${line} 0, ${line} 1px,
+        transparent 1px, transparent ${cell}px)`);
+      imgs.push(`repeating-linear-gradient(to bottom,
+        transparent 0, ${line} 0, ${line} 1px,
+        transparent 1px, transparent ${cell}px)`);
+      if(state.bg === 'mi'){
+        const d = Math.round(cell * 0.7071);
+        const diag = bg.diag || '#eef1f5';
+        imgs.push(`repeating-linear-gradient(45deg,
+          transparent 0, transparent ${d - 1}px, ${diag} ${d - 1}px, ${diag} ${d}px)`);
+        imgs.push(`repeating-linear-gradient(-45deg,
+          transparent 0, transparent ${d - 1}px, ${diag} ${d - 1}px, ${diag} ${d}px)`);
+      }
+    }
+    return imgs.join(', ');
+  }
+
+  // ---------- 预览渲染 ----------
+  function renderPreview(lines){
+    const fs = state.fontSize, lh = lineH();
+    const totalH = lines.length * lh;
+    const paperH = 2 * PAD + totalH;
+
+    const bg = BGS.find(b => b.key === state.bg);
+    paperEl.style.backgroundColor = bg.paper;
+    const ruleLayerEl = $('ruleLayer');
+    ruleLayerEl.style.backgroundImage = bgCss();
+    paperEl.style.width = PAPER_W + 'px';
+    paperEl.style.height = paperH + 'px';
+
+    textLayerEl.style.left = PAD + 'px';
+    textLayerEl.style.top = PAD + 'px';
+    textLayerEl.style.width = contentW() + 'px';
+    textLayerEl.style.height = totalH + 'px';
+    textLayerEl.innerHTML = '';
+
+    lines.forEach(line => {
+      const div = document.createElement('div');
+      div.className = 'line';
+      div.style.height = lh + 'px';
+      div.style.fontSize = fs + 'px';
+      div.style.fontFamily = fontStack();
+      div.style.color = state.ink;
+      div.style.letterSpacing = state.letterSpacing + 'px';
+      if(line.indent){ div.style.textIndent = (fs * 2) + 'px'; }
+      line.glyphs.forEach(g => {
+        const s = document.createElement('span');
+        s.className = 'glyph';
+        s.textContent = g.ch;
+        s.style.transform = `rotate(${g.angle}deg) translateY(${g.dy}px) scale(${g.scale})`;
+        div.appendChild(s);
+      });
+      textLayerEl.appendChild(div);
+    });
+
+    fitPaper();
+  }
+
+  function fitPaper(){
+    const avail = paperWrapEl.clientWidth || 200;
+    const scale = Math.min(1, (avail - 8) / PAPER_W);
+    paperEl.style.transform = `scale(${scale})`;
+    paperEl.style.transformOrigin = 'top left';
+    paperEl.parentElement.style.height = (paperEl.offsetHeight * scale) + 'px';
+  }
+
+  // ---------- 导出 PNG ----------
+  function drawBackground(ctx, W, H, nLines){
+    const bg = BGS.find(b => b.key === state.bg);
+    const fs = state.fontSize, lh = lineH();
+    ctx.fillStyle = bg.paper;
+    ctx.fillRect(0, 0, W, H);
+
+    if(state.bg === 'lined' || state.bg === 'draft'){
+      ctx.strokeStyle = bg.line || '#c7d2de';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const base = fs * ASCENT;
+      for(let k = 0; k <= nLines; k++){
+        const y = PAD + base + k * lh;
+        if(y > H) break;
+        ctx.moveTo(0, y); ctx.lineTo(W, y);
+      }
+      ctx.stroke();
+      if(state.bg === 'draft'){
+        ctx.strokeStyle = '#e2b7b7';
+        ctx.beginPath();
+        ctx.moveTo(PAD * 0.55, 0); ctx.lineTo(PAD * 0.55, H);
+        ctx.stroke();
+      }
+    } else if(state.bg === 'grid' || state.bg === 'mi'){
+      const cell = fs;
+      ctx.strokeStyle = bg.line || '#d4dbe4';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for(let x = 0; x <= W; x += cell){ ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+      for(let y = 0; y <= H; y += cell){ ctx.moveTo(0, y); ctx.lineTo(W, y); }
+      ctx.stroke();
+      if(state.bg === 'mi'){
+        ctx.strokeStyle = bg.diag || '#eef1f5';
+        const d = cell * 0.7071;
+        ctx.beginPath();
+        for(let x = -H; x <= W; x += d){ ctx.moveTo(x, 0); ctx.lineTo(x + H, H); }
+        for(let x = 0; x <= W + H; x += d){ ctx.moveTo(x, 0); ctx.lineTo(x - H, H); }
+        ctx.stroke();
+      }
+    }
+  }
+
+  async function exportPNG(){
+    if(!state.text.trim()){
+      alert('请先输入一些文字～');
+      return;
+    }
+    try{
+      await document.fonts.load(`${state.fontSize}px "${state.font}"`, state.text.slice(0, 40) || '永');
+      await document.fonts.load(`${state.fontSize}px "Caveat"`, 'Handwriting abc ABC');
+      await document.fonts.ready;
+    }catch(e){ /* 忽略字体加载异常，用回退字体 */ }
+
+    const scale = 2;
+    const lines = buildLines();
+    const totalH = lines.length * lineH();
+    const W = PAPER_W, H = 2 * PAD + totalH;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W * scale;
+    canvas.height = H * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    drawBackground(ctx, W, H, lines.length);
+
+    const fs = state.fontSize, lh = lineH(), base = fs * ASCENT;
+    const indentPx = state.indent ? fs * 2 : 0;
+
+    lines.forEach((line, k) => {
+      const baseY = PAD + k * lh + base;
+      line.glyphs.forEach(g => {
+        if(g.ch === ' ') return;
+        const cx = PAD + (line.indent ? indentPx : 0) + g.x + g.w / 2;
+        const cy = baseY + g.dy;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(g.angle * Math.PI / 180);
+        ctx.scale(g.scale, g.scale);
+        ctx.font = fontString();
+        ctx.fillStyle = state.ink;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(g.ch, 0, 0);
+        ctx.restore();
+      });
+    });
+
+    const a = document.createElement('a');
+    a.download = '手写_' + Date.now() + '.png';
+    a.href = canvas.toDataURL('image/png');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  // ---------- 初始化控件 ----------
+  function fillSelect(el, list, fmt, active){
+    el.innerHTML = '';
+    list.forEach(item => {
+      const o = document.createElement('option');
+      o.value = item.key !== undefined ? item.key : item.name;
+      o.textContent = fmt(item);
+      el.appendChild(o);
+    });
+    el.value = active;
+  }
+
+  fillSelect(fontEl, FONTS, f => f.label, state.font);
+  fillSelect(bgEl, BGS, b => b.label, state.bg);
+
+  (function buildInkSwatches(){
+    const wrap = $('inkSwatches');
+    wrap.innerHTML = '';
+    INKS.forEach(ink => {
+      const s = document.createElement('span');
+      s.className = 'swatch';
+      s.title = ink.label;
+      s.style.background = ink.color;
+      s.dataset.color = ink.color;
+      wrap.appendChild(s);
+    });
+    const custom = document.createElement('input');
+    custom.type = 'color';
+    custom.value = state.ink;
+    custom.title = '自定义颜色';
+    wrap.appendChild(custom);
+    updateInkActive();
+  })();
+
+  function updateInkActive(){
+    document.querySelectorAll('#inkSwatches .swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.color.toLowerCase() === state.ink.toLowerCase());
+    });
+  }
+
+  function updateValLabels(){
+    $('fontSizeVal').textContent = state.fontSize + 'px';
+    $('lineHeightVal').textContent = state.lineHeight.toFixed(2) + 'x';
+    $('letterSpacingVal').textContent = state.letterSpacing + 'px';
+    $('tiltVal').textContent = state.tilt > 0 ? state.tilt + '°' : '关闭';
+  }
+
+  // ---------- 渲染调度 ----------
+  let timer;
+  function scheduleRender(){
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try{
+        await document.fonts.load(`${state.fontSize}px "${state.font}"`, state.text.slice(0, 40) || '永');
+        await document.fonts.load(`${state.fontSize}px "Caveat"`, 'abc');
+      }catch(e){}
+      const lines = buildLines();
+      renderPreview(lines);
+      document.querySelector('.empty-hint').style.display = state.text.trim() ? 'none' : 'flex';
+    }, 50);
+  }
+
+  // ---------- 事件绑定 ----------
+  textEl.addEventListener('input', e => { state.text = e.target.value; scheduleRender(); });
+  fontEl.addEventListener('change', e => { state.font = e.target.value; scheduleRender(); });
+  bgEl.addEventListener('change', e => { state.bg = e.target.value; scheduleRender(); });
+  fontSizeEl.addEventListener('input', e => { state.fontSize = +e.target.value; updateValLabels(); scheduleRender(); });
+  lineHeightEl.addEventListener('input', e => { state.lineHeight = +e.target.value; updateValLabels(); scheduleRender(); });
+  letterSpacingEl.addEventListener('input', e => { state.letterSpacing = +e.target.value; updateValLabels(); scheduleRender(); });
+  tiltEl.addEventListener('input', e => { state.tilt = +e.target.value; updateValLabels(); scheduleRender(); });
+  indentEl.addEventListener('change', e => { state.indent = e.target.checked; scheduleRender(); });
+
+  document.getElementById('inkSwatches').addEventListener('click', e => {
+    if(e.target.classList && e.target.classList.contains('swatch')){
+      state.ink = e.target.dataset.color;
+      updateInkActive();
+      scheduleRender();
+    }
+  });
+  document.querySelector('#inkSwatches input[type=color]').addEventListener('input', e => {
+    state.ink = e.target.value;
+    updateInkActive();
+    scheduleRender();
+  });
+
+  exportBtn.addEventListener('click', exportPNG);
+  clearBtn.addEventListener('click', () => { textEl.value = ''; state.text = ''; scheduleRender(); });
+  sampleBtn.addEventListener('click', () => {
+    textEl.value = '今天天气真好，我坐在窗边写作业。\n风轻轻地吹进来，把纸页吹得哗哗响。\n生活就像一页页的稿纸，写满了就翻过去。\n愿你在忙碌的日子里，也能停下笔，抬头看看天空。';
+    state.text = textEl.value;
+    scheduleRender();
+  });
+
+  window.addEventListener('resize', fitPaper);
+
+  // ---------- 启动 ----------
+  updateValLabels();
+  sampleBtn.click();
+})();
+</script>
+</body>
+</html>
